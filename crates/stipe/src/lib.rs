@@ -71,7 +71,7 @@ where
         )
     }
 
-    pub fn not(&'a self, ty: &'a Bdd<'a, C, Type<C>>) -> &'a Bdd<'a, C, Type<C>> {
+    pub fn not<T: TyAtom>(&'a self, ty: &'a Bdd<'a, C, T>) -> &'a Bdd<'a, C, T> {
         Bdd::not(&self.arena, ty)
     }
 
@@ -179,4 +179,98 @@ where
         }))
     }
     */
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{
+        Context,
+        bdd::{Bdd, TyAtom, Type},
+        ty::TyConfig,
+    };
+
+    impl TyAtom for String {}
+
+    #[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
+    struct TestName(String);
+    impl From<&str> for TestName {
+        fn from(value: &str) -> Self {
+            TestName(value.to_string())
+        }
+    }
+
+    #[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
+    struct TestBasic(String);
+    impl TyAtom for TestBasic {}
+    impl From<&str> for TestBasic {
+        fn from(value: &str) -> Self {
+            TestBasic(value.to_string())
+        }
+    }
+
+    #[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
+    struct TestVar(String);
+    impl TyAtom for TestVar {}
+    impl From<&str> for TestVar {
+        fn from(value: &str) -> Self {
+            TestVar(value.to_string())
+        }
+    }
+
+    #[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
+    struct TestProp(String);
+
+    #[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
+    struct TestConfig {}
+    impl TyConfig for TestConfig {
+        type TyName = TestName;
+        type Basic = TestBasic;
+        type Var = TestVar;
+        type Prop = TestProp;
+    }
+
+    #[test]
+    fn make_types() {
+        let ctx: Context<TestConfig> = Context::new();
+
+        let int = ctx.basic("Int".into());
+        let boolean = ctx.basic("Boolean".into());
+
+        /*
+        println!("not boolean: {:#?}", ctx.not(boolean));
+
+        let union = ctx.inter([int, boolean]);
+
+        println!("union {union:#?}");
+        */
+
+        println!("not bool union {:#?}", ctx.inter([int, ctx.not(boolean)]));
+        println!("not int union {:#?}", ctx.inter([ctx.not(int), boolean]));
+        println!(
+            "not both union {:#?}",
+            ctx.inter([ctx.not(int), ctx.not(boolean)])
+        );
+    }
+
+    #[test]
+    fn make_types_with_var() {
+        let ctx: Context<TestConfig> = Context::new();
+
+        let int = ctx.basic("Int".into());
+        let t1 = ctx.var("T1".into());
+
+        let ty_int = Bdd::map_atoms(&ctx.arena, int, &|basic| -> &Type<'_, TestConfig> {
+            ctx.arena.alloc(Type::from_basics(&ctx.arena, Bdd::atom))
+        });
+
+        /*
+        println!("not boolean: {:#?}", ctx.not(boolean));
+
+        let union = ctx.inter([int, boolean]);
+
+        println!("union {union:#?}");
+        */
+
+        //println!("union {:#?}", ctx.inter([int, t1]));
+    }
 }

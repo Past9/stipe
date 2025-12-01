@@ -3,13 +3,13 @@ use crate::{
     ty::{Ty, TyConfig},
 };
 
-#[derive(PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Openness {
     Open,
     Closed,
 }
 
-#[derive(PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Record<'a, C, T>
 where
     C: TyConfig,

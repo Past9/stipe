@@ -3,7 +3,7 @@ use crate::{
     ty::TyConfig,
 };
 
-#[derive(PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Arrow<'a, C, T>(pub &'a Bdd<'a, C, T>, pub &'a Bdd<'a, C, T>)
 where
     C: TyConfig,

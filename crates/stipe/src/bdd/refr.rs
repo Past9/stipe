@@ -3,7 +3,7 @@ use crate::{
     ty::TyConfig,
 };
 
-#[derive(PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Refr<'a, C, T>
 where
     C: TyConfig,

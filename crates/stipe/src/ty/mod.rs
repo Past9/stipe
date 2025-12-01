@@ -10,11 +10,11 @@ pub use refr::Ref;
 
 use crate::bdd::TyAtom;
 
-pub trait TyConfig: PartialEq + Eq + PartialOrd + Ord {
-    type TyName: PartialEq + Eq + PartialOrd + Ord;
-    type Basic: PartialEq + Eq + PartialOrd + Ord + TyAtom;
-    type Var: PartialEq + Eq + PartialOrd + Ord + TyAtom;
-    type Prop: PartialEq + Eq + PartialOrd + Ord;
+pub trait TyConfig: PartialEq + Eq + PartialOrd + Ord + std::fmt::Debug {
+    type TyName: PartialEq + Eq + PartialOrd + Ord + std::fmt::Debug;
+    type Basic: TyAtom;
+    type Var: TyAtom;
+    type Prop: PartialEq + Eq + PartialOrd + Ord + std::fmt::Debug;
 }
 
 pub enum Ty<'a, C>

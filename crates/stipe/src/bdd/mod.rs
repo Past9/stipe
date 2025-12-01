@@ -11,36 +11,56 @@ pub use product::Product;
 pub use record::{Openness, Record};
 pub use refr::Refr;
 
-pub trait TyAtom: PartialEq + Eq + PartialOrd + Ord {}
+pub trait TyAtom: PartialEq + Eq + PartialOrd + Ord + std::fmt::Debug {}
 
-#[derive(PartialEq, Eq, PartialOrd, Ord)]
+// NOTES: Start with some "whole, top-level" type that includes variables. Only after Step 5
+// (original paper, elimination of toplevel variables) do we "separate the constructors"
+// (Step 6) to get the more specific BDDs.
+
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Type<'a, C>
 where
     C: TyConfig,
 {
-    vars: Bdd<'a, C, C::Var>,
-    basics: Bdd<'a, C, C::Basic>,
-    products: Bdd<'a, C, Product<'a, C, Type<'a, C>>>,
-    arrows: Bdd<'a, C, Arrow<'a, C, Type<'a, C>>>,
-    records: Bdd<'a, C, Record<'a, C, Type<'a, C>>>,
-    refrs: Bdd<'a, C, Refr<'a, C, Type<'a, C>>>,
-    _c: PhantomData<C>,
+    pub vars: &'a Bdd<'a, C, C::Var>,
+    pub basics: &'a Bdd<'a, C, C::Basic>,
+    pub products: &'a Bdd<'a, C, Product<'a, C, Type<'a, C>>>,
+    pub arrows: &'a Bdd<'a, C, Arrow<'a, C, Type<'a, C>>>,
+    pub records: &'a Bdd<'a, C, Record<'a, C, Type<'a, C>>>,
+    pub refrs: &'a Bdd<'a, C, Refr<'a, C, Type<'a, C>>>,
+    pub _c: PhantomData<C>,
+}
+impl<'a, C> Type<'a, C>
+where
+    C: TyConfig,
+{
+    pub fn empty(arena: &'a bumpalo::Bump) -> Self {
+        Self {
+            vars: Bdd::bot(arena),
+            basics: Bdd::bot(arena),
+            products: Bdd::bot(arena),
+            arrows: Bdd::bot(arena),
+            records: Bdd::bot(arena),
+            refrs: Bdd::bot(arena),
+            _c: PhantomData,
+        }
+    }
+
+    pub fn from_basics(arena: &'a bumpalo::Bump, basics: &'a Bdd<'a, C, C::Basic>) -> Self {
+        Self {
+            vars: Bdd::bot(arena),
+            basics,
+            products: Bdd::bot(arena),
+            arrows: Bdd::bot(arena),
+            records: Bdd::bot(arena),
+            refrs: Bdd::bot(arena),
+            _c: PhantomData,
+        }
+    }
 }
 impl<'a, C> TyAtom for Type<'a, C> where C: TyConfig {}
 
-/*
-#[derive(PartialEq, Eq, PartialOrd, Ord)]
-pub struct Atom<'a, C, T>
-where
-    C: TyConfig,
-    T: TyAtom,
-{
-    product: Product<'a, C, T>,
-    _c: PhantomData<C>,
-}
-*/
-
-#[derive(PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Bdd<'a, C, T>
 where
     C: TyConfig,
@@ -62,6 +82,30 @@ where
     C: TyConfig,
     T: TyAtom,
 {
+    pub fn map_atoms<T2: TyAtom, F: Fn(&'a T) -> &'a T2>(
+        arena: &'a bumpalo::Bump,
+        bdd: &'a Self,
+        f: &F,
+    ) -> &'a Bdd<'a, C, T2> {
+        match bdd {
+            Bdd::Atom {
+                atom,
+                pos,
+                lu,
+                neg,
+                _c,
+            } => arena.alloc(Bdd::Atom {
+                atom: f(atom),
+                pos: Self::map_atoms(arena, pos, f),
+                lu: Self::map_atoms(arena, lu, f),
+                neg: Self::map_atoms(arena, neg, f),
+                _c: PhantomData,
+            }),
+            Bdd::Bot => Bdd::bot(arena),
+            Bdd::Top => Bdd::top(arena),
+        }
+    }
+
     pub fn top(arena: &'a bumpalo::Bump) -> &'a Self {
         arena.alloc(Self::Top)
     }
@@ -90,13 +134,13 @@ where
                 _c,
             } => arena.alloc(Self::Atom {
                 atom,
-                pos: neg,
+                pos: Self::not(arena, pos),
                 lu: Self::not(arena, lu),
-                neg: pos,
+                neg: Self::not(arena, neg),
                 _c: PhantomData,
             }),
-            Bdd::Bot => Self::top(arena),
-            Bdd::Top => Self::bot(arena),
+            Bdd::Bot => Bdd::top(arena),
+            Bdd::Top => Bdd::bot(arena),
         }
     }
 
