@@ -25,6 +25,7 @@ where
     Atom {
         atom: &'a Atom<'a, C>,
         pos: &'a Self,
+        lu: &'a Self,
         neg: &'a Self,
     },
     Bot,
@@ -51,28 +52,33 @@ where
                 Bdd::Atom {
                     atom: a1,
                     pos: c1,
+                    lu: u1,
                     neg: d1,
                 },
                 Bdd::Atom {
                     atom: a2,
                     pos: c2,
+                    lu: u2,
                     neg: d2,
                 },
             ) => match a1.cmp(a2) {
                 Ordering::Equal => arena.alloc(Self::Atom {
                     atom: a1,
                     pos: Bdd::union(arena, c1, c2),
+                    lu: Bdd::union(arena, u1, u2),
                     neg: Bdd::union(arena, d1, d2),
                 }),
                 Ordering::Less => arena.alloc(Self::Atom {
                     atom: a1,
-                    pos: Bdd::union(arena, c1, b2),
-                    neg: Bdd::union(arena, d1, b2),
+                    pos: c1,
+                    lu: Bdd::union(arena, u1, b2),
+                    neg: d1,
                 }),
                 Ordering::Greater => arena.alloc(Self::Atom {
                     atom: a2,
-                    pos: Bdd::union(arena, b1, c2),
-                    neg: Bdd::union(arena, b1, d2),
+                    pos: c2,
+                    lu: Bdd::union(arena, b1, u2),
+                    neg: d2,
                 }),
             },
         }
@@ -88,27 +94,32 @@ where
                 Bdd::Atom {
                     atom: a1,
                     pos: c1,
+                    lu: u1,
                     neg: d1,
                 },
                 Bdd::Atom {
                     atom: a2,
                     pos: c2,
+                    lu: u2,
                     neg: d2,
                 },
             ) => match a1.cmp(a2) {
                 Ordering::Equal => arena.alloc(Self::Atom {
                     atom: a1,
-                    pos: Bdd::inter(arena, c1, c2),
-                    neg: Bdd::inter(arena, d1, d2),
+                    pos: Bdd::inter(arena, Bdd::union(arena, c1, u1), Bdd::union(arena, c2, u2)),
+                    lu: Bdd::bot(arena),
+                    neg: Bdd::inter(arena, Bdd::union(arena, d1, u1), Bdd::union(arena, d2, u2)),
                 }),
                 Ordering::Less => arena.alloc(Self::Atom {
                     atom: a1,
                     pos: Bdd::inter(arena, c1, b2),
+                    lu: Bdd::inter(arena, u1, b2),
                     neg: Bdd::inter(arena, d1, b2),
                 }),
                 Ordering::Greater => arena.alloc(Self::Atom {
                     atom: a2,
                     pos: Bdd::inter(arena, b1, c2),
+                    lu: Bdd::inter(arena, b1, u2),
                     neg: Bdd::inter(arena, b1, d2),
                 }),
             },
@@ -125,13 +136,15 @@ where
             (
                 Bdd::Top,
                 Bdd::Atom {
-                    atom: a,
+                    atom,
                     pos: b1,
+                    lu,
                     neg: b2,
                 },
             ) => arena.alloc(Self::Atom {
-                atom: a,
+                atom,
                 pos: Bdd::diff(arena, Bdd::top(arena), b1),
+                lu,
                 neg: Bdd::diff(arena, Bdd::top(arena), b2),
             }),
 
@@ -139,28 +152,33 @@ where
                 Bdd::Atom {
                     atom: a1,
                     pos: c1,
+                    lu: u1,
                     neg: d1,
                 },
                 Bdd::Atom {
                     atom: a2,
                     pos: c2,
+                    lu: u2,
                     neg: d2,
                 },
             ) => match a1.cmp(a2) {
                 Ordering::Equal => arena.alloc(Self::Atom {
                     atom: a1,
-                    pos: Bdd::diff(arena, c1, c2),
-                    neg: Bdd::diff(arena, d1, d2),
+                    pos: Bdd::diff(arena, Bdd::union(arena, c1, u1), Bdd::union(arena, c2, u2)),
+                    lu: Bdd::bot(arena),
+                    neg: Bdd::diff(arena, Bdd::union(arena, d1, u1), Bdd::union(arena, d2, u2)),
                 }),
                 Ordering::Less => arena.alloc(Self::Atom {
                     atom: a1,
-                    pos: Bdd::diff(arena, c1, b2),
-                    neg: Bdd::diff(arena, d1, b2),
+                    pos: Bdd::diff(arena, Bdd::union(arena, c1, u1), b2),
+                    lu: Bdd::bot(arena),
+                    neg: Bdd::diff(arena, Bdd::union(arena, d1, u1), b2),
                 }),
                 Ordering::Greater => arena.alloc(Self::Atom {
                     atom: a2,
-                    pos: Bdd::diff(arena, b1, c2),
-                    neg: Bdd::diff(arena, b1, d2),
+                    pos: Bdd::diff(arena, b1, Bdd::union(arena, c2, u2)),
+                    lu: Bdd::bot(arena),
+                    neg: Bdd::diff(arena, b1, Bdd::union(arena, d2, u2)),
                 }),
             },
         }
