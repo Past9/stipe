@@ -103,26 +103,37 @@ where
                     lu: u2,
                     neg: d2,
                 },
-            ) => match a1.cmp(a2) {
-                Ordering::Equal => arena.alloc(Self::Atom {
-                    atom: a1,
-                    pos: Bdd::inter(arena, Bdd::union(arena, c1, u1), Bdd::union(arena, c2, u2)),
-                    lu: Bdd::bot(arena),
-                    neg: Bdd::inter(arena, Bdd::union(arena, d1, u1), Bdd::union(arena, d2, u2)),
-                }),
-                Ordering::Less => arena.alloc(Self::Atom {
-                    atom: a1,
-                    pos: Bdd::inter(arena, c1, b2),
-                    lu: Bdd::inter(arena, u1, b2),
-                    neg: Bdd::inter(arena, d1, b2),
-                }),
-                Ordering::Greater => arena.alloc(Self::Atom {
-                    atom: a2,
-                    pos: Bdd::inter(arena, b1, c2),
-                    lu: Bdd::inter(arena, b1, u2),
-                    neg: Bdd::inter(arena, b1, d2),
-                }),
-            },
+            ) => Bdd::simplify_lazy_unions(
+                arena,
+                match a1.cmp(a2) {
+                    Ordering::Equal => arena.alloc(Self::Atom {
+                        atom: a1,
+                        pos: Bdd::inter(
+                            arena,
+                            Bdd::union(arena, c1, u1),
+                            Bdd::union(arena, c2, u2),
+                        ),
+                        lu: Bdd::bot(arena),
+                        neg: Bdd::inter(
+                            arena,
+                            Bdd::union(arena, d1, u1),
+                            Bdd::union(arena, d2, u2),
+                        ),
+                    }),
+                    Ordering::Less => arena.alloc(Self::Atom {
+                        atom: a1,
+                        pos: Bdd::inter(arena, c1, b2),
+                        lu: Bdd::inter(arena, u1, b2),
+                        neg: Bdd::inter(arena, d1, b2),
+                    }),
+                    Ordering::Greater => arena.alloc(Self::Atom {
+                        atom: a2,
+                        pos: Bdd::inter(arena, b1, c2),
+                        lu: Bdd::inter(arena, b1, u2),
+                        neg: Bdd::inter(arena, b1, d2),
+                    }),
+                },
+            ),
         }
     }
 
@@ -161,26 +172,37 @@ where
                     lu: u2,
                     neg: d2,
                 },
-            ) => match a1.cmp(a2) {
-                Ordering::Equal => arena.alloc(Self::Atom {
-                    atom: a1,
-                    pos: Bdd::diff(arena, Bdd::union(arena, c1, u1), Bdd::union(arena, c2, u2)),
-                    lu: Bdd::bot(arena),
-                    neg: Bdd::diff(arena, Bdd::union(arena, d1, u1), Bdd::union(arena, d2, u2)),
-                }),
-                Ordering::Less => arena.alloc(Self::Atom {
-                    atom: a1,
-                    pos: Bdd::diff(arena, Bdd::union(arena, c1, u1), b2),
-                    lu: Bdd::bot(arena),
-                    neg: Bdd::diff(arena, Bdd::union(arena, d1, u1), b2),
-                }),
-                Ordering::Greater => arena.alloc(Self::Atom {
-                    atom: a2,
-                    pos: Bdd::diff(arena, b1, Bdd::union(arena, c2, u2)),
-                    lu: Bdd::bot(arena),
-                    neg: Bdd::diff(arena, b1, Bdd::union(arena, d2, u2)),
-                }),
-            },
+            ) => Bdd::simplify_lazy_unions(
+                arena,
+                match a1.cmp(a2) {
+                    Ordering::Equal => arena.alloc(Self::Atom {
+                        atom: a1,
+                        pos: Bdd::diff(arena, Bdd::union(arena, c1, u1), Bdd::union(arena, c2, u2)),
+                        lu: Bdd::bot(arena),
+                        neg: Bdd::diff(arena, Bdd::union(arena, d1, u1), Bdd::union(arena, d2, u2)),
+                    }),
+                    Ordering::Less => arena.alloc(Self::Atom {
+                        atom: a1,
+                        pos: Bdd::diff(arena, Bdd::union(arena, c1, u1), b2),
+                        lu: Bdd::bot(arena),
+                        neg: Bdd::diff(arena, Bdd::union(arena, d1, u1), b2),
+                    }),
+                    Ordering::Greater => arena.alloc(Self::Atom {
+                        atom: a2,
+                        pos: Bdd::diff(arena, b1, Bdd::union(arena, c2, u2)),
+                        lu: Bdd::bot(arena),
+                        neg: Bdd::diff(arena, b1, Bdd::union(arena, d2, u2)),
+                    }),
+                },
+            ),
+        }
+    }
+
+    fn simplify_lazy_unions(arena: &'a bumpalo::Bump, bdd: &'a Self) -> &'a Self {
+        match bdd {
+            Bdd::Atom { pos, lu, neg, .. } if pos != neg && **lu == Bdd::Top => lu,
+            Bdd::Atom { pos, lu, neg, .. } if pos == neg => Self::union(arena, pos, lu),
+            _ => bdd,
         }
     }
 }
