@@ -8,10 +8,12 @@ pub use product::Product;
 pub use record::{Openness, Record};
 pub use refr::Ref;
 
+use crate::bdd::TyAtom;
+
 pub trait TyConfig: PartialEq + Eq + PartialOrd + Ord {
     type TyName: PartialEq + Eq + PartialOrd + Ord;
-    type Basic: PartialEq + Eq + PartialOrd + Ord;
-    type Var: PartialEq + Eq + PartialOrd + Ord;
+    type Basic: PartialEq + Eq + PartialOrd + Ord + TyAtom;
+    type Var: PartialEq + Eq + PartialOrd + Ord + TyAtom;
     type Prop: PartialEq + Eq + PartialOrd + Ord;
 }
 
