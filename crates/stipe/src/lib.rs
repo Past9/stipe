@@ -1,12 +1,10 @@
 mod ty;
 
+use crate::ty::{Arrow, Openness, Product, Record, Ref, Ty, TyConfig};
+use bumpalo::Bump;
 use std::marker::PhantomData;
 
-use bumpalo::Bump;
-
-use crate::ty::{Arrow, Openness, Product, Record, Ref, Ty, TyConfig};
-
-struct Context<C>
+pub struct Context<C>
 where
     C: TyConfig,
 {
@@ -17,6 +15,7 @@ impl<'a, C> Context<C>
 where
     C: TyConfig,
 {
+    #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
         Self {
             arena: Bump::new(),
