@@ -1,20 +1,18 @@
 mod arrow;
-mod inter;
 mod product;
 mod record;
 mod refr;
-mod union;
 
 pub use arrow::Arrow;
 pub use product::Product;
 pub use record::{Openness, Record};
 pub use refr::Ref;
 
-pub trait TyConfig {
-    type TyId;
-    type Basic;
-    type Var;
-    type Name;
+pub trait TyConfig: PartialEq + Eq + PartialOrd + Ord {
+    type TyName: PartialEq + Eq + PartialOrd + Ord;
+    type Basic: PartialEq + Eq + PartialOrd + Ord;
+    type Var: PartialEq + Eq + PartialOrd + Ord;
+    type Prop: PartialEq + Eq + PartialOrd + Ord;
 }
 
 pub enum Ty<'a, C>

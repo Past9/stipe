@@ -1,8 +1,9 @@
+mod bdd;
 mod ty;
 
-use crate::ty::{Arrow, Openness, Product, Record, Ref, Ty, TyConfig};
 use bumpalo::Bump;
 use std::marker::PhantomData;
+use ty::{Arrow, Openness, Product, Record, Ref, Ty, TyConfig};
 
 pub struct Context<C>
 where
@@ -49,7 +50,7 @@ where
 
     pub fn record<I>(&'a self, open: Openness, props: I) -> &'a Ty<'a, C>
     where
-        I: IntoIterator<Item = (C::Name, &'a Ty<'a, C>)>,
+        I: IntoIterator<Item = (C::Prop, &'a Ty<'a, C>)>,
     {
         self.arena.alloc(Ty::Record(Record {
             map: bumpalo::collections::Vec::from_iter_in(props, &self.arena),
@@ -83,7 +84,7 @@ where
         self.arena.alloc(Ty::Not(ty))
     }
 
-    pub fn refr<I>(&'a self, id: C::TyId, args: I) -> &'a Ty<'a, C>
+    pub fn refr<I>(&'a self, id: C::TyName, args: I) -> &'a Ty<'a, C>
     where
         I: IntoIterator<Item = &'a Ty<'a, C>>,
     {
