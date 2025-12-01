@@ -7,3 +7,4 @@ description = "Set-theoretic structural type system and solver"
 repository = "https://github.com/Past9/stipe"
 
 [dependencies]
+bumpalo = { version = "3.19.0", features = [ "collections"] }
