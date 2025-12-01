@@ -1,6 +1,6 @@
 use crate::{
     bdd::{Bdd, TyAtom},
-    ty::{Ty, TyConfig},
+    ty::TyConfig,
 };
 
 #[derive(PartialEq, Eq, PartialOrd, Ord)]

@@ -3,7 +3,9 @@ mod ty;
 
 use bumpalo::Bump;
 use std::marker::PhantomData;
-use ty::{Arrow, Openness, Product, Record, Ref, Ty, TyConfig};
+use ty::TyConfig;
+
+use crate::bdd::{Arrow, Bdd, Openness, Product, Record, Refr, TyAtom, Type};
 
 pub struct Context<C>
 where
@@ -24,6 +26,89 @@ where
         }
     }
 
+    pub fn top(&'a self) -> &'a Bdd<'a, C, Type<'a, C>> {
+        Bdd::top(&self.arena)
+    }
+
+    pub fn bot(&'a self) -> &'a Bdd<'a, C, Type<C>> {
+        Bdd::bot(&self.arena)
+    }
+
+    pub fn var(&'a self, var: C::Var) -> &'a Bdd<'a, C, C::Var> {
+        Bdd::atom(&self.arena, self.arena.alloc(var))
+    }
+
+    pub fn basic(&'a self, basic: C::Basic) -> &'a Bdd<'a, C, C::Basic> {
+        Bdd::atom(&self.arena, self.arena.alloc(basic))
+    }
+
+    pub fn product(
+        &'a self,
+        l: &'a Bdd<'a, C, Type<C>>,
+        r: &'a Bdd<'a, C, Type<C>>,
+    ) -> &'a Bdd<'a, C, Product<C, Type<'a, C>>> {
+        Bdd::atom(&self.arena, self.arena.alloc(Product(l, r)))
+    }
+
+    pub fn arrow(
+        &'a self,
+        l: &'a Bdd<'a, C, Type<C>>,
+        r: &'a Bdd<'a, C, Type<C>>,
+    ) -> &'a Bdd<'a, C, Arrow<C, Type<'a, C>>> {
+        Bdd::atom(&self.arena, self.arena.alloc(Arrow(l, r)))
+    }
+
+    pub fn record<I>(&'a self, open: Openness, props: I) -> &'a Bdd<'a, C, Record<C, Type<'a, C>>>
+    where
+        I: IntoIterator<Item = (C::Prop, &'a Bdd<'a, C, Type<'a, C>>)>,
+    {
+        Bdd::atom(
+            &self.arena,
+            self.arena.alloc(Record {
+                map: bumpalo::collections::Vec::from_iter_in(props, &self.arena),
+                open,
+            }),
+        )
+    }
+
+    pub fn not(&'a self, ty: &'a Bdd<'a, C, Type<C>>) -> &'a Bdd<'a, C, Type<C>> {
+        Bdd::not(&self.arena, ty)
+    }
+
+    pub fn refr<I>(&'a self, id: C::TyName, args: I) -> &'a Bdd<'a, C, Refr<'a, C, Type<'a, C>>>
+    where
+        I: IntoIterator<Item = &'a Bdd<'a, C, Type<'a, C>>>,
+    {
+        Bdd::atom(
+            &self.arena,
+            self.arena.alloc(Refr {
+                id,
+                args: bumpalo::collections::Vec::from_iter_in(args, &self.arena),
+            }),
+        )
+    }
+
+    pub fn union<I, T: TyAtom>(&'a self, members: I) -> &'a Bdd<'a, C, T>
+    where
+        I: IntoIterator<Item = &'a Bdd<'a, C, T>>,
+    {
+        members
+            .into_iter()
+            .reduce(|acc, ty| Bdd::union(&self.arena, acc, ty))
+            .unwrap_or_else(|| Bdd::bot(&self.arena))
+    }
+
+    pub fn inter<I, T: TyAtom>(&'a self, members: I) -> &'a Bdd<'a, C, T>
+    where
+        I: IntoIterator<Item = &'a Bdd<'a, C, T>>,
+    {
+        members
+            .into_iter()
+            .reduce(|acc, ty| Bdd::inter(&self.arena, acc, ty))
+            .unwrap_or_else(|| Bdd::top(&self.arena))
+    }
+
+    /*
     pub fn top(&'a self) -> &'a Ty<'a, C> {
         self.arena.alloc(Ty::Top)
     }
@@ -93,4 +178,5 @@ where
             args: bumpalo::collections::Vec::from_iter_in(args, &self.arena),
         }))
     }
+    */
 }

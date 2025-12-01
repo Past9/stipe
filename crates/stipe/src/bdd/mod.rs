@@ -3,37 +3,32 @@ mod product;
 mod record;
 mod refr;
 
+use crate::ty::TyConfig;
 use std::{cmp::Ordering, marker::PhantomData};
 
-use crate::{
-    bdd::{arrow::Arrow, product::Product, record::Record, refr::Refr},
-    ty::TyConfig,
-};
+pub use arrow::Arrow;
+pub use product::Product;
+pub use record::{Openness, Record};
+pub use refr::Refr;
 
 pub trait TyAtom: PartialEq + Eq + PartialOrd + Ord {}
 
 #[derive(PartialEq, Eq, PartialOrd, Ord)]
-pub struct Type<'a, C, T>
+pub struct Type<'a, C>
 where
     C: TyConfig,
-    T: TyAtom,
 {
     vars: Bdd<'a, C, C::Var>,
     basics: Bdd<'a, C, C::Basic>,
-    products: Bdd<'a, C, Product<'a, C, T>>,
-    arrows: Bdd<'a, C, Arrow<'a, C, T>>,
-    records: Bdd<'a, C, Record<'a, C, T>>,
-    refrs: Bdd<'a, C, Refr<'a, C, T>>,
-    //_c: PhantomData<C>,
-    _t: PhantomData<T>,
+    products: Bdd<'a, C, Product<'a, C, Type<'a, C>>>,
+    arrows: Bdd<'a, C, Arrow<'a, C, Type<'a, C>>>,
+    records: Bdd<'a, C, Record<'a, C, Type<'a, C>>>,
+    refrs: Bdd<'a, C, Refr<'a, C, Type<'a, C>>>,
+    _c: PhantomData<C>,
 }
-impl<'a, C, T> TyAtom for Type<'a, C, T>
-where
-    C: TyConfig,
-    T: TyAtom,
-{
-}
+impl<'a, C> TyAtom for Type<'a, C> where C: TyConfig {}
 
+/*
 #[derive(PartialEq, Eq, PartialOrd, Ord)]
 pub struct Atom<'a, C, T>
 where
@@ -41,7 +36,9 @@ where
     T: TyAtom,
 {
     product: Product<'a, C, T>,
+    _c: PhantomData<C>,
 }
+*/
 
 #[derive(PartialEq, Eq, PartialOrd, Ord)]
 pub enum Bdd<'a, C, T>
@@ -50,10 +47,12 @@ where
     T: TyAtom,
 {
     Atom {
-        atom: &'a Type<'a, C, T>,
+        //atom: &'a Type<'a, C>,
+        atom: &'a T,
         pos: &'a Self,
         lu: &'a Self,
         neg: &'a Self,
+        _c: PhantomData<C>,
     },
     Bot,
     Top,
@@ -71,6 +70,36 @@ where
         arena.alloc(Self::Bot)
     }
 
+    pub fn atom(arena: &'a bumpalo::Bump, atom: &'a T) -> &'a Self {
+        arena.alloc(Self::Atom {
+            atom,
+            pos: Self::top(arena),
+            lu: Self::bot(arena),
+            neg: Self::bot(arena),
+            _c: PhantomData,
+        })
+    }
+
+    pub fn not(arena: &'a bumpalo::Bump, bdd: &'a Self) -> &'a Self {
+        match bdd {
+            Bdd::Atom {
+                atom,
+                pos,
+                lu,
+                neg,
+                _c,
+            } => arena.alloc(Self::Atom {
+                atom,
+                pos: neg,
+                lu: Self::not(arena, lu),
+                neg: pos,
+                _c: PhantomData,
+            }),
+            Bdd::Bot => Self::top(arena),
+            Bdd::Top => Self::bot(arena),
+        }
+    }
+
     pub fn union(arena: &'a bumpalo::Bump, b1: &'a Self, b2: &'a Self) -> &'a Self {
         match (b1, b2) {
             (bot @ Self::Bot, Self::Bot) => bot,
@@ -82,12 +111,14 @@ where
                     pos: c1,
                     lu: u1,
                     neg: d1,
+                    _c: _,
                 },
                 Self::Atom {
                     atom: a2,
                     pos: c2,
                     lu: u2,
                     neg: d2,
+                    _c: _,
                 },
             ) => match a1.cmp(a2) {
                 Ordering::Equal => arena.alloc(Self::Atom {
@@ -95,18 +126,21 @@ where
                     pos: Self::union(arena, c1, c2),
                     lu: Self::union(arena, u1, u2),
                     neg: Self::union(arena, d1, d2),
+                    _c: PhantomData,
                 }),
                 Ordering::Less => arena.alloc(Self::Atom {
                     atom: a1,
                     pos: c1,
                     lu: Self::union(arena, u1, b2),
                     neg: d1,
+                    _c: PhantomData,
                 }),
                 Ordering::Greater => arena.alloc(Self::Atom {
                     atom: a2,
                     pos: c2,
                     lu: Self::union(arena, b1, u2),
                     neg: d2,
+                    _c: PhantomData,
                 }),
             },
         }
@@ -124,12 +158,14 @@ where
                     pos: c1,
                     lu: u1,
                     neg: d1,
+                    _c: _,
                 },
                 Self::Atom {
                     atom: a2,
                     pos: c2,
                     lu: u2,
                     neg: d2,
+                    _c: _,
                 },
             ) => Self::simplify_lazy_unions(
                 arena,
@@ -147,18 +183,21 @@ where
                             Self::union(arena, d1, u1),
                             Self::union(arena, d2, u2),
                         ),
+                        _c: PhantomData,
                     }),
                     Ordering::Less => arena.alloc(Self::Atom {
                         atom: a1,
                         pos: Self::inter(arena, c1, b2),
                         lu: Self::inter(arena, u1, b2),
                         neg: Self::inter(arena, d1, b2),
+                        _c: PhantomData,
                     }),
                     Ordering::Greater => arena.alloc(Self::Atom {
                         atom: a2,
                         pos: Self::inter(arena, b1, c2),
                         lu: Self::inter(arena, b1, u2),
                         neg: Self::inter(arena, b1, d2),
+                        _c: PhantomData,
                     }),
                 },
             ),
@@ -179,12 +218,14 @@ where
                     pos: b1,
                     lu,
                     neg: b2,
+                    _c: _,
                 },
             ) => arena.alloc(Self::Atom {
                 atom,
                 pos: Self::diff(arena, Self::top(arena), b1),
                 lu,
                 neg: Self::diff(arena, Self::top(arena), b2),
+                _c: PhantomData,
             }),
 
             (
@@ -193,12 +234,14 @@ where
                     pos: c1,
                     lu: u1,
                     neg: d1,
+                    _c: _,
                 },
                 Self::Atom {
                     atom: a2,
                     pos: c2,
                     lu: u2,
                     neg: d2,
+                    _c: _,
                 },
             ) => Self::simplify_lazy_unions(
                 arena,
@@ -216,18 +259,21 @@ where
                             Self::union(arena, d1, u1),
                             Self::union(arena, d2, u2),
                         ),
+                        _c: PhantomData,
                     }),
                     Ordering::Less => arena.alloc(Self::Atom {
                         atom: a1,
                         pos: Self::diff(arena, Self::union(arena, c1, u1), b2),
                         lu: Self::bot(arena),
                         neg: Self::diff(arena, Self::union(arena, d1, u1), b2),
+                        _c: PhantomData,
                     }),
                     Ordering::Greater => arena.alloc(Self::Atom {
                         atom: a2,
                         pos: Self::diff(arena, b1, Self::union(arena, c2, u2)),
                         lu: Self::bot(arena),
                         neg: Self::diff(arena, b1, Self::union(arena, d2, u2)),
+                        _c: PhantomData,
                     }),
                 },
             ),
